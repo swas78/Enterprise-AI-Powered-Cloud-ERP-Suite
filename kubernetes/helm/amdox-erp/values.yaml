@@ -1,0 +1,134 @@
+# Default configuration values for amdox-erp
+
+global:
+  environment: production
+  tenantDomain: amdox.cloud
+
+# ==================================================
+# 1. Express Backend Gateway Configuration
+# ==================================================
+backend:
+  replicaCount: 2
+  image:
+    repository: amdox-erp-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  pdb:
+    enabled: true
+    minAvailable: 1
+  env:
+    databaseUrl: "postgresql://postgres:postgres@amdox-prod-postgres:5432/amdox-erp?schema=public"
+    redisUrl: "redis://amdox-prod-redis:6379"
+
+# ==================================================
+# 2. React TS Frontend Configuration
+# ==================================================
+frontend:
+  replicaCount: 2
+  image:
+    repository: amdox-erp-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+# ==================================================
+# 3. Python FastAPI Demand Forecast API Configuration
+# ==================================================
+mlService:
+  replicaCount: 1
+  image:
+    repository: amdox-erp-ml-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1536Mi
+    requests:
+      cpu: 500m
+      memory: 768Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 85
+    targetMemoryUtilizationPercentage: 85
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+# ==================================================
+# 4. Ingress Routing Configuration
+# ==================================================
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: amdox.local
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: frontend
+          servicePort: 80
+        - path: /api/v1
+          pathType: Prefix
+          serviceName: backend
+          servicePort: 5000
+        - path: /forecast
+          pathType: Prefix
+          serviceName: ml-service
+          servicePort: 8000
+
+# ==================================================
+# 5. Dependencies
+# ==================================================
+postgresql:
+  enabled: true
+  auth:
+    username: postgres
+    password: postgres
+    database: amdox-erp
+    
+redis:
+  enabled: true

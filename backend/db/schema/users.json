@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User",
+  "type": "object",
+  "properties": {
+    "_id": { "type": "string", "pattern": "^[0-9a-fA-F]{24}$" },
+    "email": { "type": "string", "format": "email" },
+    "password": { "type": "string" },
+    "name": { "type": "string" },
+    "role": { "type": "string", "enum": ["SuperAdmin", "TenantAdmin", "Manager", "Viewer"] },
+    "tenantId": { "type": "string", "pattern": "^[0-9a-fA-F]{24}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["email", "password", "name", "role", "tenantId"]
+}
