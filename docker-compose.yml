@@ -1,0 +1,148 @@
+version: '3.8'
+
+services:
+  # MongoDB database service (legacy/migration source)
+  mongodb:
+    image: mongo:6.0
+    container_name: amdox-mongodb
+    ports:
+      - "27017:27017"
+    command: mongod --replSet rs0 --bind_ip_all
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  mongodb-rs-init:
+    image: mongo:6.0
+    container_name: amdox-mongodb-init
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    command: >
+      mongosh --host mongodb:27017 --eval '
+        try { rs.status(); console.log("Replica Set already initialized"); } catch (err) { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "localhost:27017" }] }); console.log("Replica Set initialized successfully"); }
+      '
+
+  # PostgreSQL Data Layer (Strict PRD)
+  postgres:
+    image: postgres:15-alpine
+    container_name: amdox-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: amdox_erp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # TimescaleDB for Audit/Telemetry (Strict PRD)
+  timescaledb:
+    image: timescale/timescaledb-ha:pg15
+    container_name: amdox-timescaledb
+    environment:
+      POSTGRES_USER: timescale
+      POSTGRES_PASSWORD: timescalepassword
+      POSTGRES_DB: amdox_telemetry
+    ports:
+      - "5433:5432"
+    volumes:
+      - timescaledb_data:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timescale"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Elasticsearch for Global Search (Strict PRD)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: amdox-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # Redis instance for BullMQ and Rate Limiting
+  redis:
+    image: redis:7.2-alpine
+    container_name: amdox-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak 25 Identity Provider for Multi-Tenant Auth (F-01)
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: amdox-keycloak
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: adminpassword
+      KC_DB: dev-file
+    ports:
+      - "8080:8080"
+    command: start-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # Observability - Prometheus
+  prometheus:
+    image: prom/prometheus:v2.47.1
+    container_name: amdox-prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  # Observability - Grafana
+  grafana:
+    image: grafana/grafana:10.1.5
+    container_name: amdox-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  mongodb_data:
+  postgres_data:
+  timescaledb_data:
+  elasticsearch_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:

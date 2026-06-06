@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # MongoDB database service (enabled with replication for transactions support)
+  mongodb:
+    image: mongo:6.0
+    container_name: amdox-prod-mongodb
+    ports:
+      - "27017:27017"
+    command: mongod --replSet rs0 --bind_ip_all
+    volumes:
+      - mongodb_prod_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Helper service to initiate the replica set setup
+  mongodb-rs-init:
+    image: mongo:6.0
+    container_name: amdox-prod-mongodb-init
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    command: >
+      mongosh --host mongodb:27017 --eval '
+        try {
+          rs.status();
+          console.log("Replica Set already initialized");
+        } catch (err) {
+          rs.initiate({
+            _id: "rs0",
+            members: [{ _id: 0, host: "mongodb:27017" }]
+          });
+          console.log("Replica Set initialized successfully");
+        }
+      '
+
+  # Redis instance for BullMQ and Rate Limiting
+  redis:
+    image: redis:7.2-alpine
+    container_name: amdox-prod-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak Identity Provider for Multi-Tenant Auth
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: amdox-prod-keycloak
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: adminpassword
+      KC_DB: dev-file
+    ports:
+      - "8080:8080"
+    command: start-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # FastAPI Demand Forecasting Microservice
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: amdox-prod-ml-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    restart: always
+
+  # Node/Express API Gateway Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: amdox-prod-backend
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - DATABASE_URL=mongodb://mongodb:27017/amdox-erp?replicaSet=rs0
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=prod-jwt-secret-replace-with-vault-in-k8s
+      - CSRF_SECRET=prod-csrf-secret-replace-with-vault-in-k8s
+    restart: always
+
+  # React SPA Static Serving Container
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: amdox-prod-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  mongodb_prod_data:
+  redis_prod_data:

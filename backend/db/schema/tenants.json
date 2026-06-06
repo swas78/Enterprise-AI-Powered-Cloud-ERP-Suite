@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tenant",
+  "type": "object",
+  "properties": {
+    "_id": { "type": "string", "pattern": "^[0-9a-fA-F]{24}$" },
+    "name": { "type": "string" },
+    "subdomain": { "type": "string" },
+    "status": { "type": "string", "enum": ["active", "suspended"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["name", "status"]
+}

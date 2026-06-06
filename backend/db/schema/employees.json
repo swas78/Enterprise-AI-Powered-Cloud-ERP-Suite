@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Employee",
+  "type": "object",
+  "properties": {
+    "_id": { "type": "string", "pattern": "^[0-9a-fA-F]{24}$" },
+    "tenantId": { "type": "string", "pattern": "^[0-9a-fA-F]{24}$" },
+    "name": { "type": "string" },
+    "email": { "type": "string", "format": "email" },
+    "department": { "type": "string" },
+    "role": { "type": "string" },
+    "salary": { "type": "number", "minimum": 0 },
+    "managerId": { "type": ["string", "null"], "pattern": "^[0-9a-fA-F]{24}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["tenantId", "name", "email", "department", "role", "salary"]
+}

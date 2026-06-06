@@ -1,0 +1,74 @@
+import { Router } from 'express';
+import authRoutes from './authRoutes';
+import userRoutes from './userRoutes';
+import tenantRoutes from './tenantRoutes';
+import ledgerRoutes from './finance/ledgerRoutes';
+import apRoutes from './finance/apRoutes';
+import arRoutes from './finance/arRoutes';
+import currencyRoutes from './finance/currencyRoutes';
+import employeeRoutes from './hr/employeeRoutes';
+import payrollRoutes from './hr/payrollRoutes';
+import poRoutes from './supplyChain/poRoutes';
+import vendorRoutes from './supplyChain/vendorRoutes';
+import forecastingRoutes from './supplyChain/forecastingRoutes';
+import dashboardRoutes from './dashboard/dashboardRoutes';
+import projectRoutes from './project/projectRoutes';
+import notificationRoutes from './notification/notificationRoutes';
+import webhookRoutes from './notification/webhookRoutes';
+import eventRoutes from './notification/eventRoutes';
+import complianceRoutes from './compliance/complianceRoutes';
+import settingsRoutes from './settings/settingsRoutes';
+import roleRoutes from './settings/roleRoutes';
+import permissionRoutes from './settings/permissionRoutes';
+import integrationRoutes from './settings/integrationRoutes';
+import leaveRoutes from './hr/leaveRoutes';
+import attendanceRoutes from './hr/attendanceRoutes';
+import organisationRoutes from './hr/organisationRoutes';
+import inventoryRoutes from './supplyChain/inventoryRoutes';
+import taskRoutes from './project/taskRoutes';
+import resourceRoutes from './project/resourceRoutes';
+import budgetRoutes from './project/budgetRoutes';
+import widgetRoutes from './dashboard/widgetRoutes';
+import reportRoutes from './dashboard/reportRoutes';
+import { bullBoardRouter } from '../config/bullBoard';
+import { authGuard, roleGuard } from '../middleware/auth.middleware';
+
+const router = Router();
+
+// Load sub-modules under standard api/v1 prefix
+router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
+router.use('/tenants', tenantRoutes);
+router.use('/finance/ledger', ledgerRoutes);
+router.use('/finance/ap', apRoutes);
+router.use('/finance/ar', arRoutes);
+router.use('/finance/currency', currencyRoutes);
+router.use('/hr/employees', employeeRoutes);
+router.use('/hr/payroll', payrollRoutes);
+router.use('/supply-chain/po', poRoutes);
+router.use('/supply-chain/vendors', vendorRoutes);
+router.use('/supply-chain/forecasting', forecastingRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/projects', projectRoutes);
+router.use('/notifications/webhooks', webhookRoutes);
+router.use('/notifications/events', eventRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/compliance', complianceRoutes);
+router.use('/settings/roles', roleRoutes);
+router.use('/settings/permissions', permissionRoutes);
+router.use('/settings/integrations', integrationRoutes);
+router.use('/settings', settingsRoutes);
+router.use('/hr/leaves', leaveRoutes);
+router.use('/hr/attendance', attendanceRoutes);
+router.use('/hr/organisation', organisationRoutes);
+router.use('/supply-chain/inventory', inventoryRoutes);
+router.use('/projects/tasks', taskRoutes);
+router.use('/projects/resources', resourceRoutes);
+router.use('/projects/budgets', budgetRoutes);
+router.use('/dashboard/widgets', widgetRoutes);
+router.use('/dashboard/reports', reportRoutes);
+router.use('/admin/queues', authGuard, roleGuard(['SuperAdmin', 'TenantAdmin']), bullBoardRouter);
+
+export default router;
+
+

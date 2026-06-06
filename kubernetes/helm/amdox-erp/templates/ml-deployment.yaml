@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "amdox-erp.fullname" . }}-ml-service
+  labels:
+    {{- include "amdox-erp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ml-service
+spec:
+  replicas: {{ .Values.mlService.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "amdox-erp.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: ml-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "amdox-erp.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: ml-service
+    spec:
+      containers:
+        - name: ml-service
+          image: "{{ .Values.mlService.image.repository }}:{{ .Values.mlService.image.tag }}"
+          imagePullPolicy: {{ .Values.mlService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.mlService.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.mlService.resources | nindent 12 }}

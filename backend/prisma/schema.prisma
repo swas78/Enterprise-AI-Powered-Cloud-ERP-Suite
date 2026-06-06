@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  domain    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  accounts      Account[]
+  journalEntries JournalEntry[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  mfaEnabled Boolean @default(false)
+  mfaSecret String?
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id          String   @id @default(uuid())
+  code        String
+  name        String
+  type        String   // Asset, Liability, Equity, Revenue, Expense
+  category    String?
+  isActive    Boolean  @default(true)
+  balance     Float    @default(0.0)
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  journalLines JournalLine[]
+  
+  @@unique([tenantId, code])
+}
+
+model JournalEntry {
+  id          String   @id @default(uuid())
+  reference   String
+  date        DateTime
+  description String
+  status      String   @default("DRAFT") // DRAFT, POSTED, LOCKED
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  lines       JournalLine[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model JournalLine {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  debit          Float        @default(0.0)
+  credit         Float        @default(0.0)
+  description    String?
+}
+
+model PurchaseOrder {
+  id          String   @id @default(uuid())
+  poNumber    String
+  supplierId  String
+  status      String   @default("DRAFT") // DRAFT, APPROVED, RECEIVED
+  totalAmount Float    @default(0.0)
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
